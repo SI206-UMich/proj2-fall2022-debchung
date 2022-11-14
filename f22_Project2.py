@@ -4,6 +4,8 @@ import re
 import os
 import csv
 import unittest
+import string
+import sys
 
 
 def get_listings_from_search_results(html_file):
@@ -25,8 +27,29 @@ def get_listings_from_search_results(html_file):
         ('Loft in Mission District', 210, '1944564'),  # example
     ]
     """
-    pass
+    with open(html_file) as fh:
+        soup = BeautifulSoup(fh, "html.parser")
+    listings = []
+    #findall of container
+    items = soup.find_all('div', itemprop='itemListElement')
+    for item in items:
+        #title
+        title = str(item.find("div", class_="t1jojoys dir dir-ltr").text)
+        title = title.replace('\n', "")
+        title = title.replace('  ', ' ')
+        title = title.replace('  ', '')
 
+        #cost
+        cost = item.find('span', class_='_tyxjp1').text
+        cost = int(cost.strip('$'))
+        #id
+        url = item.find('meta', itemprop='url')
+        link = url.get('content')
+        id = re.findall( r"\/(\d+)\?", link)[0]
+
+        listings.append((title, cost, id))
+
+    return listings
 
 def get_listing_information(listing_id):
     """
@@ -52,7 +75,35 @@ def get_listing_information(listing_id):
         number of bedrooms
     )
     """
-    pass
+    with open("html_files/listing_" + listing_id + ".html") as fh:
+        soup = BeautifulSoup(fh, "html.parser")
+    info = ()
+    #policy
+    num = soup.find('li', class_='f19phm7j dir dir-ltr')
+    policy = num.find('span', class_='ll4r2nl dir dir-ltr').text
+    if re.match(r"\s*[Pp]ending|City\s[Rr]egistration\s[Pp]ending", policy):
+        policy = "Pending"
+    elif re.match(r"License not needed per OSTR", policy):
+        policy = "Exempt"
+    #place type
+    blurb = soup.find('h2', class_='_14i3z6h').text
+    sentence = blurb.split()
+    place_type = "Entire Room"
+    for word in sentence:
+        if word == "private" or word == "Private":
+            place_type = "Private Room"
+        elif word == "shared" or word == "Shared":
+            place_type = "Shared Room"
+    #number of bedrooms
+    details = list(soup.find_all('li', class_='l7n4lsf dir dir-ltr'))
+    x = details[1].text
+    if re.search(r"Studio", x):
+        bedrooms = "1 bedroom"
+    else:
+        bedrooms = re.findall(r"(\d+)\s[a-zA-Z]*\s*bedroom[s]*", x)[0]
+    room_count = int(bedrooms[0])
+    info = (policy, place_type, room_count)
+    return info
 
 
 def get_detailed_listing_database(html_file):
@@ -69,7 +120,14 @@ def get_detailed_listing_database(html_file):
         ...
     ]
     """
-    pass
+    listings_list = get_listings_from_search_results(html_file)
+    total_database = []
+    for listing in listings_list:
+        id_info = get_listing_information(listing[2])
+        database = (listing[0], listing[1], listing[2], id_info[0], id_info[1], id_info[2])
+        total_database.append(database)
+    
+    return(total_database)
 
 
 def write_csv(data, filename):
@@ -94,8 +152,23 @@ def write_csv(data, filename):
 
     This function should not return anything.
     """
-    pass
+    sorted_data = data
+    sorted_data.sort(key = lambda x : x[1])
+    fout = open(filename, "w")
+    line = "Listing Title,Cost,Listing ID,Policy Number,Place Type,Number of Bedrooms\n"
+    fout.write(line)
 
+    row = ""
+    for listing in data:
+        for thing in listing:
+            if thing == listing[len(listing)-1]:
+                row = row + str(thing)
+            else: 
+                row = row + str(thing) + ','
+        line = row + "\n"
+        fout.write(line)
+        row = ""
+    fout.close()
 
 def check_policy_numbers(data):
     """
@@ -116,8 +189,15 @@ def check_policy_numbers(data):
     ]
 
     """
-    pass
-
+    bad_listings = []
+    for listing in data:
+        if re.search(r"20[0-9]{2}\-00[0-9]{4}STR|STR\-000[0-9]{4}", listing[3]):
+            continue
+        elif re.search(r"Pending|Exempt", listing[3]):
+            continue
+        else:
+            bad_listings.append(listing[2])
+    return bad_listings
 
 def extra_credit(listing_id):
     """
@@ -133,7 +213,27 @@ def extra_credit(listing_id):
     gone over their 90 day limit, else return True, indicating the lister has
     never gone over their limit.
     """
-    pass
+    with open("html_files/listing_" + listing_id + "_reviews.html") as fh:
+        soup = BeautifulSoup(fh, "html.parser")
+    
+    year_count_dict = {}
+    count = 1
+    reviews = soup.find_all('div', class_='r1are2x1 dir dir-ltr')
+    for review in reviews:
+        date = review.find('li', class_='_1f1oir5').text
+        year = date.split()[1]
+        if year in year_count_dict:
+            year_count_dict[year] = year_count_dict[year] + 1
+        else:
+            year_count_dict[year] = count
+    
+    for year in year_count_dict:
+        if year_count_dict[year] > 90:
+            return False
+        else:
+            continue
+    return True
+    
 
 
 class TestCases(unittest.TestCase):
@@ -147,11 +247,14 @@ class TestCases(unittest.TestCase):
         # check that the variable you saved after calling the function is a list
         self.assertEqual(type(listings), list)
         # check that each item in the list is a tuple
-
+        for listing in listings:
+            self.assertEqual(type(listing), tuple)
         # check that the first title, cost, and listing id tuple is correct (open the search results html and find it)
-
+        self.assertEqual(listings[0][0], 'Loft in Mission District')
+        self.assertEqual(listings[0][1], 210)
+        self.assertEqual(listings[0][2], '1944564')
         # check that the last title is correct (open the search results html and find it)
-        pass
+        self.assertEqual(listings[len(listings)-1][0], 'Guest suite in Mission District')
 
     def test_get_listing_information(self):
         html_list = ["1623609",
@@ -236,6 +339,11 @@ class TestCases(unittest.TestCase):
 
         # check that the first element in the list is '16204265'
         pass
+    def test_ec(self):
+        self.check_1944564 = extra_credit("1944564")
+        self.assertTrue(extra_credit("1944564"))
+        self.check_16204265 = extra_credit("16204265")
+        self.assertFalse(extra_credit("16204265"))
 
 
 if __name__ == '__main__':
@@ -243,3 +351,4 @@ if __name__ == '__main__':
     write_csv(database, "airbnb_dataset.csv")
     check_policy_numbers(database)
     unittest.main(verbosity=2)
+
