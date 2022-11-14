@@ -277,11 +277,11 @@ class TestCases(unittest.TestCase):
             # check that the third element in the tuple is an int
             self.assertEqual(type(listing_information[2]), int)
         # check that the first listing in the html_list has policy number 'STR-0001541'
-        self.assertEqual(listing_information[0][0], 'STR-0001541')
+        self.assertEqual(listing_informations[0][0], 'STR-0001541')
         # check that the last listing in the html_list is a "Private Room"
-        self.assertEqual(listing_information[len(listing_information)-1][1], 'Private Room')
+        self.assertEqual(listing_informations[len(listing_informations)-1][1], 'Private Room')
         # check that the third listing has one bedroom
-        self.assertEqual(listing_information[2][2], 1)
+        self.assertEqual(listing_informations[2][2], 1)
 
     def test_get_detailed_listing_database(self):
         # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
@@ -346,11 +346,11 @@ class TestCases(unittest.TestCase):
         # check that the return value is a list
         self.assertEqual(type(invalid_listings), list)
         # check that there is exactly one element in the string
-
+        self.assertEqual(len(invalid_listings), 1)
         # check that the element in the list is a string
-
+        self.assertEqual(type(invalid_listings[0]), str)
         # check that the first element in the list is '16204265'
-        pass
+        self.assertEqual(invalid_listings[0], '16204265')
     
     def test_ec(self):
         self.check_1944564 = extra_credit("1944564")
