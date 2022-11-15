@@ -7,6 +7,10 @@ import unittest
 import string
 import sys
 
+# Your name: Debby Chung
+# Your student id: 24199350
+# Your email: debchung@umich.edu
+# List who you have worked with on this project: Dylan Siewert
 
 def get_listings_from_search_results(html_file):
     """
